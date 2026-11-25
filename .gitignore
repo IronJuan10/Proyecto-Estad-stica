@@ -1,0 +1,13 @@
+# Microdatos ESS: keep the user-provided file local
+/data/Datafile-subset.csv
+/data/Datafile-subset codebook.html
+
+# R / RStudio working files and rendered outputs
+.Rhistory
+.RData
+.Rproj.user/
+*.html
+*.pdf
+*.log
+*.aux
+*.tex
