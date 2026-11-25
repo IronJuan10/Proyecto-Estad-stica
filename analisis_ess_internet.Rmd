@@ -20,9 +20,9 @@ knitr::opts_chunk$set(
 )
 ```
 
-# Preguta y objetivos
+# Pregunta y objetivos
 
-**Pregunta:** ¿�Cómo varía el tiempo diario dedicado a internet entre las rondas 8 y 11 de la ESS en España?
+**Pregunta:** ¿Cómo varía el tiempo diario dedicado a internet entre las rondas 8 y 11 de la ESS en España?
 
 1. Describir el tiempo de uso diario registrado en cada ronda.
 2. Comparar las rondas con ANOVA de un factor y Kruskal-Wallis.
@@ -34,7 +34,7 @@ Son objetivos provisionales, basados en las variables que incluye el CSV recibid
 
 El archivo contiene España (**cntry = ES**) y las rondas 1 a 11. La única variable sustantiva es **netustm**: minutos dedicados a internet en un día típico. El codebook indica que se pregunta solo a quienes usan internet la mayoría de los días o todos los días. Por tanto, el análisis de minutos se refiere a ese grupo con respuesta válida.
 
-En las rondas 1 a 7, **netustm** aparece vacío en el archivo. El análisis de esta variable se limita a las rondas 8 a 11. El CSV no contiene edad, género ni on segundo factor explicativo; con este subconjunto no se puede hacer un ANOVA bifactorial ni comparar grupos demográficos.
+En las rondas 1 a 7, **netustm** aparece vacío en el archivo. El análisis de esta variable se limita a las rondas 8 a 11. El CSV no contiene edad, género ni un segundo factor explicativo; con este subconjunto no se puede hacer un ANOVA bifactorial ni comparar grupos demográficos.
 
 La ESS recomienda usar **anweight** como ponderación general. En un análisis de un solo país, **pspwght** también es adecuado y debe dar estimaciones equivalentes; en este archivo, ambas ponderaciones producen las mismas medias por ronda. Los contrastes clásicos de esta primera versión se calculan sobre la muestra sin ajuste del diseño muestral completo.
 
@@ -51,7 +51,7 @@ datos <- read.csv(
 columnas_necesarias <- c("essround", "cntry", "anweight", "netustm")
 faltan <- setdiff(columnas_necesarias, names(datos))
 if (length(faltan) > 0) {
-  stop(paste("Faltan columnas necearias:", paste(faltan, collapse = ", ")))
+  stop(paste("Faltan columnas necesarias:", paste(faltan, collapse = ", ")))
 }
 
 datos$essround <- as.integer(datos$essround)
@@ -63,7 +63,7 @@ datos$estado_netustm <- "Válido"
 datos$estado_netustm[is.na(datos$netustm)] <- "Vacío/no disponible"
 datos$estado_netustm[which(datos$netustm == 6666)] <- "No aplicable"
 datos$estado_netustm[which(datos$netustm == 7777)] <- "Rechazo"
-datos$estado_netustm[which(datos$ netustm == 8888)] <- "No sabe"
+datos$estado_netustm[which(datos$netustm == 8888)] <- "No sabe"
 datos$estado_netustm[which(datos$netustm == 9999)] <- "Sin respuesta"
 
 datos_las_rondas <- subset(
