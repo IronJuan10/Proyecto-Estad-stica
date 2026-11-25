@@ -1,0 +1,239 @@
+---
+title: "Uso diario de internet en España"
+subtitle: "Exploración de las rondas 8 a 11 de la Encuesta Social Europea"
+author: "Proyecto grupal — Estadística II"
+date: "`r format(Sys.Date(), '%d/%m/%Y')`"
+output:
+  html_document:
+    toc: true
+    toc_depth: 2
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = TRUE,
+  warning = FALSE,
+  message = FALSE,
+  fig.width = 7,
+  fig.height = 4.5,
+  fig.align = "center"
+)
+```
+
+# Preguta y objetivos
+
+**Pregunta:** ¿�Cómo varía el tiempo diario dedicado a internet entre las rondas 8 y 11 de la ESS en España?
+
+1. Describir el tiempo de uso diario registrado en cada ronda.
+2. Comparar las rondas con ANOVA de un factor y Kruskal-Wallis.
+3. Describir la proporción de respuestas válidas, no aplicables y sin respuesta por ronda.
+
+Son objetivos provisionales, basados en las variables que incluye el CSV recibido.
+
+# Datos y alcance
+
+El archivo contiene España (**cntry = ES**) y las rondas 1 a 11. La única variable sustantiva es **netustm**: minutos dedicados a internet en un día típico. El codebook indica que se pregunta solo a quienes usan internet la mayoría de los días o todos los días. Por tanto, el análisis de minutos se refiere a ese grupo con respuesta válida.
+
+En las rondas 1 a 7, **netustm** aparece vacío en el archivo. El análisis de esta variable se limita a las rondas 8 a 11. El CSV no contiene edad, género ni on segundo factor explicativo; con este subconjunto no se puede hacer un ANOVA bifactorial ni comparar grupos demográficos.
+
+La ESS recomienda usar **anweight** como ponderación general. En un análisis de un solo país, **pspwght** también es adecuado y debe dar estimaciones equivalentes; en este archivo, ambas ponderaciones producen las mismas medias por ronda. Los contrastes clásicos de esta primera versión se calculan sobre la muestra sin ajuste del diseño muestral completo.
+
+# Importación y preparación
+
+```{r}
+archivo <- file.path("data", "Datafile-subset.csv")
+datos <- read.csv(
+  archivo,
+  stringsAsFactors = FALSE,
+  na.strings = c("", "NA")
+)
+
+columnas_necesarias <- c("essround", "cntry", "anweight", "netustm")
+faltan <- setdiff(columnas_necesarias, names(datos))
+if (length(faltan) > 0) {
+  stop(paste("Faltan columnas necearias:", paste(faltan, collapse = ", ")))
+}
+
+datos$essround <- as.integer(datos$essround)
+datos$netustm <- as.numeric(datos$netustm)
+datos$anweight <- as.numeric(datos$anweight)
+
+codigos_perdidos <- c(6666, 7777, 8888, 9999)
+datos$estado_netustm <- "Válido"
+datos$estado_netustm[is.na(datos$netustm)] <- "Vacío/no disponible"
+datos$estado_netustm[which(datos$netustm == 6666)] <- "No aplicable"
+datos$estado_netustm[which(datos$netustm == 7777)] <- "Rechazo"
+datos$estado_netustm[which(datos$ netustm == 8888)] <- "No sabe"
+datos$estado_netustm[which(datos$netustm == 9999)] <- "Sin respuesta"
+
+datos_las_rondas <- subset(
+  datos,
+  cntry == "ES" & essround %in% 8:11
+)
+
+analisis <- subset(
+  datos_las_rondas,
+  !is.na(netustm) &
+    !(netustm %in% codigos_perdidos) &
+    !is.na(anweight) &
+    anweight > 0
+)
+analisis$ronda <- factor(analisis$essround, levels = 8:11)
+
+c(
+  filas_archivo = nrow(datos),
+  filas_espana_rondas_8_11 = nrow(datos_las_rondas),
+  respuestas_validas = nrow(analisis)
+)
+```
+
+**6666** significa “no aplicable”, **7777** “rechazo”, **8888** “no sabe” y **9999** “sin respuesta”. No se convierten a minutos. Los valores 0 y 1.440 se conservan como registros válidos; se inspeccionan como posibles extremos, sin eliminarlos automáticamente.
+
+# Respuestas por ronda
+
+```{r}
+estados <- c(
+  "Válido",
+  "No aplicable",
+  "Rechazo",
+  "No sabe",
+  "Sin respuesta",
+  "Vacío/no disponible"
+)
+tabla_estados <- table(
+  factor(datos_las_rondas$essround, levels = 8:11),
+  factor(datos_las_rondas$estado_netustm, levels = estados)
+)
+colnames(tabla_estados) <- estados
+rownames(tabla_estados) <- paste("Ronda", 8:11)
+tabla_estados
+```
+
+```{r}
+round(prop.table(tabla_estados, margin = 1) * 100, 1)
+```
+
+# Descripción del tiempo de uso
+
+```{r}
+grupos <- split(analisis, analisis$ronda)
+resumen <- do.call(rbind, lapply(names(grupos), function(r) {
+  d <- grupos[[r]]
+  data.frame(
+    ronda = r,
+    n = nrow(d),
+    media_min = mean(d$netustm),
+    media_ponderada_min = weighted.mean(d$netustm, d$anweight),
+    desviacion_tipica = sd(d$netustm),
+    q1 = unname(quantile(d$netustm, 0.25)),
+    mediana = median(d$netustm),
+    q3 = unname(quantile(d$netustm, 0.75)),
+    minimo = min(d$netustm),
+    maximo = max(d$netustm)
+  )
+}))
+rownames(resumen) <- NULL
+knitr::kable(resumen, digits = 1, caption = "Tiempo diario de internet por ronda, en minutos")
+```
+
+En los datos recibidos, las medias ponderadas preliminares son aproximadamente 218,0 minutos en la ronda 8, 228,7 en la 9, 325,5 en la 10 y 282,4 en la 11. Las medianas son 120, 180, 240 y 240 minutos. La ronda 10 presenta la media más alta; en la ronda 11 baja, aunque la mediana se mantiene en 240 minutos.
+
+Las respuestas válidas representan aproximadamente el 66,2 % de los registros de la ronda 8, el 71,7 % de la 9, el 82,5 % de la 10 y el 80,5 % de la 11. Estas proporciones describen la disponibilidad de una respuesta válida a **netustm**, no la frecuencia de uso de internet de toda la muestra.
+
+# Gráficos y valores extremos
+
+```{r}
+boxplot(
+  netustm ~ ronda,
+  data = analisis,
+  ylab = "Minutos en un día típico",
+  xlab = "Ronda ESS",
+  main = "Tiempo diario de internet por ronda",
+  col = "grey90",
+  outline = FALSE
+)
+```
+
+El gráfico oculta los puntos extremos para que se aprecie mejor la caja, pero esos registros siguen en el análisis. La variable tiene una cola larga y muchos tiempos repetidos; por eso se informan también mediana y rango intercuartílico.
+
+```{r}
+plot(
+  x = 8:11,
+  y = resumen$media_ponderada_min,
+  type = "b",
+  xaxt = "n",
+  xlab = "Ronda ESS",
+  ylab = "Media ponderada (minutos)",
+  main = "Media ponderada por ronda"
+)
+axis(1, at = 8:11, labels = 8:11)
+```
+
+# Contrastes entre rondas
+
+## ANOVA de un factor
+
+```{r}
+modelo_anova <- aov(netustm ~ ronda, data = analisis)
+tabla_anova <- summary(modelo_anova)[[1]]
+tabla_anova
+
+eta2 <- tabla_anova[1, "Sum Sq"] / sum(tabla_anova[, "Sum Sq"])
+eta2
+```
+
+En el cálculo preliminar sin ponderar, la ANOVA detecta diferencias entre rondas, **F(3, 5857) = 96,78**, **p < 0,001**, con **eta² ≈ 0,047**. La diferencia entre rondas explica alrededor del 4,7 % de la variabilidad observada. El tamaño muestral grande también hace que diferencias pequeñas puedan dar valores p bajos.
+
+## Comprobación de varianzas y distribución
+
+```{r}
+desviaciones <- abs(
+  analisis$netustm -
+    ave(analisis$netustm, analisis$ronda, FUN = median)
+)
+prueba_brown_forsythe <- summary(aov(desviaciones ~ analisis$ronda))
+prueba_brown_forsythe
+
+par(mfrow = c(1, 2))
+plot(modelo_anova, which = 1)
+plot(modelo_anova, which = 2)
+par(mfrow = c(1, 1))
+```
+
+La prueba de Brown-Forsythe preliminar da **F(3, 5857) = 38,56**, **p < 0,001**, lo que indica varianzas distintas entre rondas. La distribución también es asimétrica. Por ello, se interpreta la ANOVA con cautela y se acompaña con Kruskal-Wallis.
+
+## Kruskal-Wallis y comparaciones posteriores
+
+```{r}
+prueba_kw <- kruskal.test(netustm ~ ronda, data = analisis)
+prueba_kw
+
+k <- nlevels(analisis$ronda)
+epsilon2 <- (unname(prueba_kw$statistic) - k + 1) / (nrow(analisis) - k)
+epsilon2
+
+pairwise.wilcox.test(
+  analisis$netustm,
+  analisis$ronda,
+  p.adjust.method = "holm",
+  exact = FALSE
+)
+```
+
+Kruskal-Wallis también detecta diferencias globales entre rondas: **H(3) = 320,59**, **p < 0,001**, con **epsilon² ≈ 0,054**. Las comparaciones por pares con ajuste de Holm ayudarán a localizar qué rondas difieren; deben leerse junto a los tamaños de efecto y las medianas.
+
+# Interpretación provisional
+
+En las respuestas válidas de España, las medianas aumentan de 120 minutos en la ronda 8 a 240 en las rondas 10 y 11. La media ponderada alcanza su máximo en la ronda 10 y desciende en la 11. Los contrastes indican que la distribución no es igual en todas las rondas, pero no explican por qué cambia.
+
+La ESS recoge muestras transversales en distintas rondas, no un seguimiento de las mismas personas. Las diferencias pueden reflejar cambios temporales, composición de muestra o condiciones de recogida. No se debe presentar el resultado como efecto causal.
+
+# Limitaciones y siguiente paso
+
+- El subconjunto solo tiene una variable sustantiva (**netustm**) y un país. No permite evaluar un segundo factor ni hacer un ANOVA bifactorial.
+- **netustm** está condicionada a un uso de internet frecuente. No permite describir los minutos de personas que no cumplen ese filtro.
+- El campo de minutos no está disponible en las rondas 1 a 7 de este archivo.
+- Los contrastes de esta primera versión usan pruebas clásicas y no corrigen por el diseño muestral completo. Las medias descriptivas sí usan la ponderación ESS.
+- Para ampliar el proyecto, se puede descargar también una variable explicativa como edad o género, si el grupo decide estudiar diferencias demográficas o incluir dos factores.
+
+La decisión de añadir más variables debe acordarse con el grupo para que los objetivos y la pregunta del proyecto sigan siendo coherentes.
