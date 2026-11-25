@@ -1,13 +1,12 @@
-# Microdatos ESS: keep the user-provided file local
-/data/Datafile-subset.csv
-/data/Datafile-subset codebook.html
-
-# R / RStudio working files and rendered outputs
+# Archivos temporales de R y RStudio
 .Rhistory
 .RData
 .Rproj.user/
-*.html
-*.pdf
+
+# Informe HTML generado al tejer el R Markdown
+/analisis_ess_internet.html
+
+# Archivos temporales de LaTeX
 *.log
 *.aux
 *.tex
